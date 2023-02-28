@@ -86,72 +86,75 @@ with gzip.open(fasta_file, "rt") as f:
 
                 is_coding = id_table.loc[name, "transcriptClass"] == "coding" and "pseudo" not in id_table.loc[name, "transcriptType"]
 
-                except KeyError:
-                    # if that is not possible, we skip the gene
-                    skipped +=1
-                else:
-                    # if it was possible, we go on
-                    print(gene_name)
+            except KeyError:
+                # if that is not possible, we skip the gene
+                skipped +=1
+            else:
+                # if it was possible, we go on
+                print(gene_name)
 
-                    #make a dictionary with the concatenated exons (CDS) for each gene
-                    cds_alignment = {}
-                    for species in exons:
-                        if species not in excluded_species:
-                            cds_alignment[species]="".join(exon[species]).upper()
-                            # # regular expression for truncating at inframe stop codons:
-                            regex = re.compile(r"(?:(!TAA|TAG|TGA)...)*(?:TAA|TAG|TGA)")
-
-                            # use the regular expression on each sequence 
-                            for species in list(cds_alignment.keys()):
-                                match = regex.match(cds_alignment[species])
-
-                                if match:
-                                    # remove the stop codon found
-                                    start, end = meatch.span()
-                                    cds_alignment[species] = cds_alignment[species][:end-3]+"?"*(len(cds_alignment[species])-end+3)
-                                else:
-                                    # delete the species and their sequences if the regular expression does not match
-                                    del cds_alignment[species]
-                                
-                                # keep the alignments with human and at least two other species
-                                if is_coding and "hg38" in cds_alignment and len(cds_alignment) >=2:
-                                    # record which species are in the alignment
-                                    species_included[gene_name] = list(cds_alignment.keys())
-
-                                    # write phylip file
-                                    output_path = os.path.join(output_dir, chrom, gane_name, gene_name + ".phylib")
-                                    write_phylip(cds_alignment, output_path)
-
-                                    # write fasta file (in case ypu need it)
-                                    output_path = os.path.join(output_dir, chrom, gene_name, genename + ".fa")
-                                    write_fasta(cds_alignmant, output_path)
-
-                                    # remove the species from the tree that were removed from the alignment
-                                    alignment_tree = tree.copy("newick")
-                                    alignment_tree.prune(list(cds_alignment.keys()))
-
-                                    #write the tree for the alignment
-                                    output_path = os.path.join(output_dir, chrom, gene_name, gene_name + ".nw")
-                                    alignment_tree.write(format=1, outfile=output_path)
-
-                                else:
-                                    skipped += 1
-                                
-                                # empty the exon dictionary
-                                exons = defaultdict(list)
-                        
-                        # add an exon sequence to the list for the species (assembly e.g. hg38)
-                        exons[assembly].append(str(entry.seq))
-
-                        # make our current id the precious one
-                        prev_ucsc_id = ucsc_id
+                #make a dictionary with the concatenated exons (CDS) for each gene
+                cds_alignment = {}
+                for species in exons:
+                    if species not in excluded_species:
+                        cds_alignment[species]="".join(exon[species]).upper()
                 
-                print(f"Skipped {skipped} genes")
+                # # regular expression for selecting only
+                
+                # # regular expression for truncating at inframe stop codons:
+                regex = re.compile(r"(?:(!TAA|TAG|TGA)...)*(?:TAA|TAG|TGA)")
 
-                records = []
-                for gene, aligned_species in species_included.items():
-                    row = [gene] + [species in aligned_species for species in all_species]
-                    records.append(row)
-                df = pd.DataFrame().from_records(records, columns["gene"] + all_species)
-                df.to_csv(aln_stat_file, index=False)
+                # use the regular expression on each sequence 
+                for species in list(cds_alignment.keys()):
+                    match = regex.match(cds_alignment[species])
+
+                    if match:
+                        # remove the stop codon found
+                        start, end = meatch.span()
+                        cds_alignment[species] = cds_alignment[species][:end-3]+"?"*(len(cds_alignment[species])-end+3)
+                    else:
+                        # delete the species and their sequences if the regular expression does not match
+                        del cds_alignment[species]
+                                
+                    # keep the alignments with human and at least two other species
+                    if is_coding and "hg38" in cds_alignment and len(cds_alignment) >=2:
+                        # record which species are in the alignment
+                        species_included[gene_name] = list(cds_alignment.keys())
+
+                        # write phylip file
+                        output_path = os.path.join(output_dir, chrom, gane_name, gene_name + ".phylib")
+                        write_phylip(cds_alignment, output_path)
+
+                        # write fasta file (in case ypu need it)
+                        output_path = os.path.join(output_dir, chrom, gene_name, genename + ".fa")
+                        write_fasta(cds_alignmant, output_path)
+
+                        # remove the species from the tree that were removed from the alignment
+                        alignment_tree = tree.copy("newick")
+                        alignment_tree.prune(list(cds_alignment.keys()))
+
+                        #write the tree for the alignment
+                        output_path = os.path.join(output_dir, chrom, gene_name, gene_name + ".nw")
+                        alignment_tree.write(format=1, outfile=output_path)
+
+                    else:
+                        skipped += 1
+                                
+                    # empty the exon dictionary
+                    exons = defaultdict(list)
+                        
+            # add an exon sequence to the list for the species (assembly e.g. hg38)
+            exons[assembly].append(str(entry.seq))
+
+            # make our current id the precious one
+            prev_ucsc_id = ucsc_id
+                
+print(f"Skipped {skipped} genes")
+
+records = []
+for gene, aligned_species in species_included.items():
+    row = [gene] + [species in aligned_species for species in all_species]
+    records.append(row)
+df = pd.DataFrame().from_records(records, columns["gene"] + all_species)
+df.to_csv(aln_stat_file, index=False)
                 
