@@ -1,19 +1,28 @@
-from gwf import Workflow
+import sys
+import os
+import gzip
+import pandas as pd
+from collections import defaultdict
+from contextlib import redirect_stdout
+from Bio import SeqIO
+import re 
+from ete3 import Tree
 
-gwf = Workflow()
+excluded_species = ["tupBel1", "mm10", "canFam3"]
 
-gwf.target('MyTarget', inputs=[], outputs=['greeting.txt']) << """
-echo hello world > greeting.txt
-"""
+def write_phylip(seqs, output_file):
+    if not os.path.exists(os.path.dirname(output_file)):
+        os.makedirs(os.path.dirname(output_file))
+    
+    with open(output_file, "w") as dest, redirect_stdout(dest):
+        lengths=[len(x) for x in seqs.values()]
+        assert(all(lengths[0] == l for l in lengths))
+        seq_length = lengths[0]
 
-gwf.target('TargetA', inputs=[], outputs=['x.txt']) << """
-sleep 20 && echo "this is x" > x.txt
-"""
-
-gwf.target('TargetB', inputs=[], outputs=['y.txt']) << """
-sleep 30 && echo "this is y" > y.txt
-"""
-
-gwf.target('TargetC', inputs=['x.txt', 'y.txt'], outputs=['z.txt']) << """
-sleep 10 && cat x.txt y.txt > z.txt
-"""
+        for name in seqs:
+            seqs[name]=seqs[name].replace("-", "?")
+        
+        print(f"{len(seqs)} {seq_length}")
+        for name in sorted(seqs.keys(), key=lambda x: x!="hg38"):
+            print(f"{name:<10}{seqs[name]}")
+            
