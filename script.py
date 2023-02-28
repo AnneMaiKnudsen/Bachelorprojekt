@@ -99,10 +99,11 @@ with gzip.open(fasta_file, "rt") as f:
                     if species not in excluded_species:
                         cds_alignment[species]="".join(exon[species]).upper()
                 
-                # # regular expression for selecting only
+                # # regular expression for selecting only those with an aligned start and stop codon no inframe stop codons:
+                reges = re.compile(r"ATG(?:(?!TAA|TAG|TAG)...)*(?:TAA|TAG|TGA)$")
                 
                 # # regular expression for truncating at inframe stop codons:
-                regex = re.compile(r"(?:(!TAA|TAG|TGA)...)*(?:TAA|TAG|TGA)")
+                regex = re.compile(r"(?:(?!TAA|TAG|TGA)...)*(?:TAA|TAG|TGA)")
 
                 # use the regular expression on each sequence 
                 for species in list(cds_alignment.keys()):
@@ -116,38 +117,38 @@ with gzip.open(fasta_file, "rt") as f:
                         # delete the species and their sequences if the regular expression does not match
                         del cds_alignment[species]
                                 
-                    # keep the alignments with human and at least two other species
-                    if is_coding and "hg38" in cds_alignment and len(cds_alignment) >=2:
-                        # record which species are in the alignment
-                        species_included[gene_name] = list(cds_alignment.keys())
+                # keep the alignments with human and at least two other species
+                if is_coding and "hg38" in cds_alignment and len(cds_alignment) >=2:
+                    # record which species are in the alignment
+                    species_included[gene_name] = list(cds_alignment.keys())
 
-                        # write phylip file
-                        output_path = os.path.join(output_dir, chrom, gane_name, gene_name + ".phylib")
-                        write_phylip(cds_alignment, output_path)
+                    # write phylip file
+                    output_path = os.path.join(output_dir, chrom, gane_name, gene_name + ".phylib")
+                    write_phylip(cds_alignment, output_path)
 
-                        # write fasta file (in case ypu need it)
-                        output_path = os.path.join(output_dir, chrom, gene_name, genename + ".fa")
-                        write_fasta(cds_alignmant, output_path)
+                    # write fasta file (in case ypu need it)
+                    output_path = os.path.join(output_dir, chrom, gene_name, genename + ".fa")
+                    write_fasta(cds_alignmant, output_path)
 
-                        # remove the species from the tree that were removed from the alignment
-                        alignment_tree = tree.copy("newick")
-                        alignment_tree.prune(list(cds_alignment.keys()))
+                    # remove the species from the tree that were removed from the alignment
+                    alignment_tree = tree.copy("newick")
+                    alignment_tree.prune(list(cds_alignment.keys()))
 
-                        #write the tree for the alignment
-                        output_path = os.path.join(output_dir, chrom, gene_name, gene_name + ".nw")
-                        alignment_tree.write(format=1, outfile=output_path)
+                    #write the tree for the alignment
+                    output_path = os.path.join(output_dir, chrom, gene_name, gene_name + ".nw")
+                    alignment_tree.write(format=1, outfile=output_path)
 
-                    else:
-                        skipped += 1
+                else:
+                    skipped += 1
                                 
-                    # empty the exon dictionary
-                    exons = defaultdict(list)
+                # empty the exon dictionary
+                exons = defaultdict(list)
                         
-            # add an exon sequence to the list for the species (assembly e.g. hg38)
-            exons[assembly].append(str(entry.seq))
+        # add an exon sequence to the list for the species (assembly e.g. hg38)
+        exons[assembly].append(str(entry.seq))
 
-            # make our current id the precious one
-            prev_ucsc_id = ucsc_id
+        # make our current id the precious one
+        prev_ucsc_id = ucsc_id
                 
 print(f"Skipped {skipped} genes")
 
